@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import resume
+from routers import recruiter
+from services.database import init_db
 
 app = FastAPI(title="Resume Screener API")
 
@@ -12,6 +14,11 @@ app.add_middleware(
 )
 
 app.include_router(resume.router, prefix="/api")
+app.include_router(recruiter.router, prefix="/api/recruiter")
+
+@app.on_event("startup")
+def startup():
+    init_db()
 
 @app.get("/")
 def root():
