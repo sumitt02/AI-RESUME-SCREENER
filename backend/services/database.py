@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, String, Float, JSON, DateTime, Text
+from sqlalchemy import create_engine, Column, String, Float, JSON, DateTime, Text, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -11,10 +11,22 @@ engine = create_engine(f"sqlite:///{DB_PATH}", connect_args={"check_same_thread"
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    role = Column(String)
+    company_name = Column(String, nullable=True)
+    full_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class ScreeningResult(Base):
     __tablename__ = "screenings"
 
     id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"))
     candidate_name = Column(String)
     email = Column(String)
     filename = Column(String)
@@ -29,7 +41,10 @@ class ScreeningResult(Base):
     improvements = Column(JSON)
     summary = Column(Text)
     status = Column(String, default="pending")
+    file_hash = Column(String, nullable=True)
+    skills_fingerprint = Column(String, nullable=True)
     screened_at = Column(DateTime, default=datetime.utcnow)
+    learning_resources = Column(JSON, nullable=True)
 
 def init_db():
     Base.metadata.create_all(bind=engine)

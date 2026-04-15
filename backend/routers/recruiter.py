@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from services.database import get_db, ScreeningResult
+from services.database import get_db, ScreeningResult, User
+from services.auth import require_recruiter
 
 router = APIRouter()
 
@@ -9,8 +10,13 @@ class StatusUpdate(BaseModel):
     status: str
 
 @router.get("/candidates")
-def get_all_candidates(db: Session = Depends(get_db)):
-    candidates = db.query(ScreeningResult).order_by(ScreeningResult.total_score.desc()).all()
+def get_all_candidates(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_recruiter)
+):
+    candidates = db.query(ScreeningResult)\
+        .filter(ScreeningResult.user_id == current_user.id)\
+        .order_by(ScreeningResult.total_score.desc()).all()
     return [
         {
             "id": c.id,
@@ -33,10 +39,17 @@ def get_all_candidates(db: Session = Depends(get_db)):
     ]
 
 @router.patch("/candidates/{candidate_id}/status")
-def update_status(candidate_id: str, body: StatusUpdate, db: Session = Depends(get_db)):
+def update_status(
+    candidate_id: str,
+    body: StatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_recruiter)
+):
     if body.status not in ["shortlisted", "rejected", "pending"]:
         raise HTTPException(status_code=400, detail="Invalid status")
-    c = db.query(ScreeningResult).filter(ScreeningResult.id == candidate_id).first()
+    c = db.query(ScreeningResult)\
+        .filter(ScreeningResult.id == candidate_id,
+                ScreeningResult.user_id == current_user.id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Candidate not found")
     c.status = body.status
@@ -44,11 +57,21 @@ def update_status(candidate_id: str, body: StatusUpdate, db: Session = Depends(g
     return {"id": candidate_id, "status": body.status}
 
 @router.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    total = db.query(ScreeningResult).count()
-    shortlisted = db.query(ScreeningResult).filter(ScreeningResult.status == "shortlisted").count()
-    rejected = db.query(ScreeningResult).filter(ScreeningResult.status == "rejected").count()
-    pending = db.query(ScreeningResult).filter(ScreeningResult.status == "pending").count()
+def get_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_recruiter)
+):
+    total = db.query(ScreeningResult)\
+        .filter(ScreeningResult.user_id == current_user.id).count()
+    shortlisted = db.query(ScreeningResult)\
+        .filter(ScreeningResult.user_id == current_user.id,
+                ScreeningResult.status == "shortlisted").count()
+    rejected = db.query(ScreeningResult)\
+        .filter(ScreeningResult.user_id == current_user.id,
+                ScreeningResult.status == "rejected").count()
+    pending = db.query(ScreeningResult)\
+        .filter(ScreeningResult.user_id == current_user.id,
+                ScreeningResult.status == "pending").count()
     return {
         "total": total,
         "shortlisted": shortlisted,
@@ -57,8 +80,14 @@ def get_stats(db: Session = Depends(get_db)):
     }
 
 @router.delete("/candidates/{candidate_id}")
-def delete_candidate(candidate_id: str, db: Session = Depends(get_db)):
-    c = db.query(ScreeningResult).filter(ScreeningResult.id == candidate_id).first()
+def delete_candidate(
+    candidate_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_recruiter)
+):
+    c = db.query(ScreeningResult)\
+        .filter(ScreeningResult.id == candidate_id,
+                ScreeningResult.user_id == current_user.id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Candidate not found")
     db.delete(c)

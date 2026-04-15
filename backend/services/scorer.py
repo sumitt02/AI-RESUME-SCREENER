@@ -13,32 +13,23 @@ load_dotenv(Path(__file__).parent.parent / ".env", override=True)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def parse_and_score_resume(raw_text: str, job_description: str) -> dict:
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are an expert resume parser and technical recruiter. Always return valid JSON only."
-            },
-            {
-                "role": "user",
-                "content": f"""Parse this resume AND score it against the job description in one step.
+    prompt = """Parse this resume AND score it against the job description in one step.
 
 Return ONLY this JSON:
-{{
+{
   "name": "candidate full name",
   "email": "email address",
   "phone": "phone number",
   "skills": ["skill1", "skill2"],
   "total_experience_years": 3.5,
   "total_score": 78,
-  "breakdown": {{
+  "breakdown": {
     "skill_match": 85,
     "experience_relevance": 75,
     "seniority_fit": 80,
     "achievement_quality": 70,
     "communication": 75
-  }},
+  },
   "matched_skills": ["skill1", "skill2"],
   "missing_skills": ["skill3", "skill4"],
   "green_flags": ["positive thing 1", "positive thing 2"],
@@ -48,14 +39,44 @@ Return ONLY this JSON:
     "specific actionable suggestion 2",
     "specific actionable suggestion 3"
   ],
+  "learning_resources": [
+    {
+      "skill": "the missing skill name",
+      "reason": "one sentence why this skill matters for this role",
+      "resources": [
+        {
+          "title": "resource name",
+          "url": "actual url",
+          "type": "free",
+          "platform": "YouTube",
+          "duration": "4 hours"
+        }
+      ]
+    }
+  ],
   "summary": "2-3 sentence summary of candidate fit"
-}}
+}
+
+For learning_resources, provide one entry per missing skill with 2-3 real resources.
+Prioritize free resources. Include official docs, YouTube tutorials, and one course.
+Only include resources for the top 3 most important missing skills.
 
 RESUME:
-{raw_text}
+""" + raw_text + """
 
 JOB DESCRIPTION:
-{job_description}"""
+""" + job_description
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an expert resume parser and technical recruiter. Always return valid JSON only."
+            },
+            {
+                "role": "user",
+                "content": prompt
             }
         ],
         response_format={"type": "json_object"},
@@ -70,39 +91,31 @@ def score_resume(parsed_resume: dict, job_description: str) -> dict:
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert technical recruiter. Score resumes against job descriptions. Always return valid JSON only."
+                "content": "You are an expert technical recruiter. Always return valid JSON only."
             },
             {
                 "role": "user",
-                "content": f"""Score this candidate against the job description below.
-
-Return ONLY this JSON:
-{{
-  "total_score": 78,
-  "breakdown": {{
-    "skill_match": 85,
-    "experience_relevance": 75,
-    "seniority_fit": 80,
-    "achievement_quality": 70,
-    "communication": 75
-  }},
-  "matched_skills": ["skill1", "skill2"],
-  "missing_skills": ["skill3", "skill4"],
-  "green_flags": ["positive thing 1", "positive thing 2"],
-  "red_flags": ["concern 1", "concern 2"],
-  "improvements": [
-    "specific actionable suggestion 1",
-    "specific actionable suggestion 2",
-    "specific actionable suggestion 3"
-  ],
-  "summary": "2-3 sentence summary of the candidate fit"
-}}
-
-CANDIDATE PROFILE:
-{json.dumps(parsed_resume, indent=2)}
-
-JOB DESCRIPTION:
-{job_description}"""
+                "content": json.dumps({
+                    "task": "score this candidate against the job description",
+                    "candidate": parsed_resume,
+                    "job_description": job_description,
+                    "return_format": {
+                        "total_score": 78,
+                        "breakdown": {
+                            "skill_match": 85,
+                            "experience_relevance": 75,
+                            "seniority_fit": 80,
+                            "achievement_quality": 70,
+                            "communication": 75
+                        },
+                        "matched_skills": ["skill1"],
+                        "missing_skills": ["skill2"],
+                        "green_flags": ["flag1"],
+                        "red_flags": ["flag2"],
+                        "improvements": ["tip1"],
+                        "summary": "summary here"
+                    }
+                })
             }
         ],
         response_format={"type": "json_object"},
@@ -126,6 +139,7 @@ def process_single_resume(pdf_bytes: bytes, filename: str, job_description: str)
             "green_flags": result.get("green_flags", []),
             "red_flags": result.get("red_flags", []),
             "improvements": result.get("improvements", []),
+            "learning_resources": result.get("learning_resources", []),
             "summary": result.get("summary", ""),
             "status": "success"
         }

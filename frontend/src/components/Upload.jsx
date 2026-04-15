@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-export default function Upload({ setResult, setLoading, setError, loading }) {
+export default function Upload({ setResult, setLoading, setError, loading, role = 'recruiter' }) {
   const [file, setFile] = useState(null)
   const [jd, setJd] = useState('')
   const [dragging, setDragging] = useState(false)
@@ -21,8 +21,12 @@ export default function Upload({ setResult, setLoading, setError, loading }) {
     formData.append('job_description', jd)
     formData.append('job_title', jobTitle)
 
+    const endpoint = role === 'candidate'
+      ? 'http://127.0.0.1:8000/api/candidate-score'
+      : 'http://127.0.0.1:8000/api/score'
+
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/score', formData)
+      const res = await axios.post(endpoint, formData)
       setResult(res.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong')
@@ -46,10 +50,8 @@ export default function Upload({ setResult, setLoading, setError, loading }) {
         onClick={() => document.getElementById('file-input').click()}
         style={{
           border: `2px dashed ${dragging ? '#7F77DD' : '#ddd'}`,
-          borderRadius: 12,
-          padding: '32px 20px',
-          textAlign: 'center',
-          cursor: 'pointer',
+          borderRadius: 12, padding: '32px 20px',
+          textAlign: 'center', cursor: 'pointer',
           background: dragging ? '#f5f4ff' : '#fff',
           transition: 'all 0.15s'
         }}
