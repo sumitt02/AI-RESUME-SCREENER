@@ -100,7 +100,14 @@ export default function Results({ result, role = 'candidate' }) {
                   <p style={{ fontSize: 12, color: '#666', margin: '8px 0 10px', lineHeight: 1.5 }}>{item.reason}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {(item.resources || []).map((r, j) => (
-                      <a key={j} href={r.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8f8f7', borderRadius: 8, textDecoration: 'none', border: '1px solid #eee' }}>
+                      <a key={j} href={(() => {
+                          const query = r.search_query || (r.title + ' ' + item.skill + ' tutorial')
+                          const platform = (r.platform || '').toLowerCase()
+                          if (platform.includes('youtube')) return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query)
+                          if (platform.includes('udemy')) return 'https://www.udemy.com/courses/search/?q=' + encodeURIComponent(item.skill)
+                          if (platform.includes('coursera')) return 'https://www.coursera.org/search?query=' + encodeURIComponent(item.skill)
+                          return 'https://www.google.com/search?q=' + encodeURIComponent(query)
+                        })()} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8f8f7', borderRadius: 8, textDecoration: 'none', border: '1px solid #eee' }}>
                         <div>
                           <p style={{ fontSize: 13, fontWeight: 500, color: '#1a1a1a', marginBottom: 2 }}>{r.title}</p>
                           <p style={{ fontSize: 11, color: '#999' }}>{r.platform} · {r.duration}</p>
