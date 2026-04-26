@@ -21,7 +21,7 @@ export default function BulkUpload({ setResults, setLoading, setError, loading }
     formData.append('job_title', jobTitle)
 
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/bulk-score', formData)
+      const res = await axios.post('https://ai-resume-screener-production-f337.up.railway.app/api/bulk-score', formData)
       setResults(res.data)
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong')

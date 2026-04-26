@@ -21,7 +21,7 @@ export default function App() {
     if (t && u) {
       setUser(JSON.parse(u))
       axios.defaults.headers.common['Authorization'] = `Bearer ${t}`
-      axios.get('http://127.0.0.1:8000/api/auth/me').catch(() => handleLogout())
+      axios.get('https://ai-resume-screener-production-f337.up.railway.app/api/auth/me').catch(() => handleLogout())
     }
   }, [])
 

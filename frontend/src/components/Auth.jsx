@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api/auth'
+const API = 'https://ai-resume-screener-production-f337.up.railway.app/api/auth'
 
 export default function Auth({ onLogin }) {
   const [mode, setMode] = useState('login')

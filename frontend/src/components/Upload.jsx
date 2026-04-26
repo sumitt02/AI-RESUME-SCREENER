@@ -18,8 +18,8 @@ export default function Upload({ setResult, setLoading, setError, loading, role 
     formData.append('job_description', jd)
     formData.append('job_title', jobTitle)
     const endpoint = role === 'candidate'
-      ? 'http://127.0.0.1:8000/api/candidate-score'
-      : 'http://127.0.0.1:8000/api/score'
+      ? 'https://ai-resume-screener-production-f337.up.railway.app/api/candidate-score'
+      : 'https://ai-resume-screener-production-f337.up.railway.app/api/score'
     try {
       const res = await axios.post(endpoint, formData)
       setResult(res.data)

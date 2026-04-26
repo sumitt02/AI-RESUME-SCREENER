@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const API = 'http://127.0.0.1:8000/api/recruiter'
+const API = 'https://ai-resume-screener-production-f337.up.railway.app/api/recruiter'
 
 function StatCard({ label, value, color }) {
   return (
