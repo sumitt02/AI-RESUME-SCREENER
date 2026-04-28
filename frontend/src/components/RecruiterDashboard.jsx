@@ -3,139 +3,25 @@ import axios from 'axios'
 
 const API = 'https://ai-resume-screener-production-f337.up.railway.app/api/recruiter'
 
-function StatCard({ label, value, color }) {
-  return (
-    <div style={{
-      background: '#fff', border: '1px solid #eee',
-      borderRadius: 12, padding: '16px 20px', flex: 1
-    }}>
-      <p style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>{label}</p>
-      <p style={{ fontSize: 28, fontWeight: 700, color: color || '#1a1a1a' }}>{value}</p>
-    </div>
-  )
-}
-
-function StatusBadge({ status }) {
-  const styles = {
-    shortlisted: { bg: '#E1F5EE', color: '#085041' },
-    rejected: { bg: '#FCEBEB', color: '#A32D2D' },
-    pending: { bg: '#f0f0f0', color: '#666' }
-  }
-  const s = styles[status] || styles.pending
-  return (
-    <span style={{
-      background: s.bg, color: s.color,
-      padding: '3px 10px', borderRadius: 20,
-      fontSize: 11, fontWeight: 500
-    }}>
-      {status}
-    </span>
-  )
-}
-
-function ComparePanel({ candidates, onClose }) {
-  const [a, b] = candidates
-  const dims = Object.keys(a.breakdown || {})
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000, padding: 20
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 16, padding: 28,
-        width: '100%', maxWidth: 700,
-        maxHeight: '85vh', overflowY: 'auto'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600 }}>Side by side comparison</h2>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#999'
-          }}>✕</button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-          {[a, b].map((c, i) => (
-            <div key={i} style={{
-              background: '#f8f8f7', borderRadius: 10, padding: 16, textAlign: 'center'
-            }}>
-              <p style={{ fontWeight: 600, fontSize: 15 }}>{c.candidate_name}</p>
-              <p style={{ color: '#999', fontSize: 12, marginBottom: 8 }}>{c.email}</p>
-              <p style={{
-                fontSize: 36, fontWeight: 700,
-                color: c.total_score >= 75 ? '#1D9E75' : c.total_score >= 50 ? '#EF9F27' : '#E24B4A'
-              }}>{c.total_score}</p>
-              <p style={{ fontSize: 11, color: '#999' }}>overall score</p>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Dimension breakdown</p>
-        {dims.map(dim => {
-          const scoreA = a.breakdown[dim]
-          const scoreB = b.breakdown[dim]
-          const winner = scoreA > scoreB ? 0 : scoreB > scoreA ? 1 : -1
-          return (
-            <div key={dim} style={{ marginBottom: 10 }}>
-              <p style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
-                {dim.replace(/_/g, ' ')}
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {[scoreA, scoreB].map((score, i) => (
-                  <div key={i} style={{
-                    background: winner === i ? '#E1F5EE' : '#f0f0f0',
-                    borderRadius: 6, padding: '6px 10px',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                  }}>
-                    <div style={{
-                      height: 6, borderRadius: 3,
-                      background: winner === i ? '#1D9E75' : '#ccc',
-                      width: `${score}%`, flex: 1, marginRight: 8
-                    }} />
-                    <span style={{
-                      fontSize: 12, fontWeight: 600,
-                      color: winner === i ? '#085041' : '#666'
-                    }}>{score}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
-          {[a, b].map((c, i) => (
-            <div key={i}>
-              <p style={{ fontSize: 12, color: '#999', marginBottom: 6 }}>Summary</p>
-              <p style={{ fontSize: 12, color: '#444', lineHeight: 1.6 }}>{c.summary}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function RecruiterDashboard() {
   const [candidates, setCandidates] = useState([])
   const [stats, setStats] = useState(null)
-  const [selected, setSelected] = useState([])
-  const [comparing, setComparing] = useState(false)
   const [filter, setFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState(null)
+  const [comparison, setComparison] = useState([])
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [cRes, sRes] = await Promise.all([
+      const [c, s] = await Promise.all([
         axios.get(`${API}/candidates`),
         axios.get(`${API}/stats`)
       ])
-      setCandidates(cRes.data)
-      setStats(sRes.data)
-    } catch (e) {
-      console.error(e)
+      setCandidates(c.data)
+      setStats(s.data)
+    } catch (err) {
+      console.error(err)
     } finally {
       setLoading(false)
     }
@@ -148,150 +34,306 @@ export default function RecruiterDashboard() {
   }, [])
 
   const updateStatus = async (id, status) => {
-    await axios.patch(`${API}/candidates/${id}/status`, { status })
-    setCandidates(prev =>
-      prev.map(c => c.id === id ? { ...c, status } : c)
-    )
+    try {
+      await axios.patch(`${API}/candidates/${id}/status`, { status })
+      fetchData()
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  const toggleSelect = (id) => {
-    setSelected(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 2 ? [...prev, id] : prev
-    )
+  const toggleCompare = (c) => {
+    if (comparison.find(x => x.id === c.id)) {
+      setComparison(comparison.filter(x => x.id !== c.id))
+    } else if (comparison.length < 2) {
+      setComparison([...comparison, c])
+    }
   }
 
-  const filtered = candidates.filter(c =>
-    filter === 'all' ? true : c.status === filter
-  )
+  const filtered = filter === 'all'
+    ? candidates
+    : candidates.filter(c => c.status === filter)
 
-  const compareData = selected.length === 2
-    ? candidates.filter(c => selected.includes(c.id))
-    : null
-
-  if (loading) return (
-    <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>
-      Loading candidates...
-    </div>
-  )
+  if (loading) {
+    return (
+      <div style={{ padding: 60, textAlign: 'center' }}>
+        <div style={{
+          width: 32, height: 32, border: '3px solid var(--border-bright)',
+          borderTop: '3px solid var(--accent)', borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite', margin: '0 auto 12px'
+        }} />
+        <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Loading candidates...</p>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>Recruiter dashboard</h2>
-        <button onClick={fetchData} style={{
-          padding: '7px 16px', borderRadius: 8,
-          border: '1px solid #ddd', background: '#fff',
-          fontSize: 13, cursor: 'pointer', color: '#666'
-        }}>
-          Refresh
-        </button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, animation: 'fadeIn 0.4s ease-out' }}>
 
       {stats && (
-        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-          <StatCard label="Total screened" value={stats.total} />
-          <StatCard label="Shortlisted" value={stats.shortlisted} color="#1D9E75" />
-          <StatCard label="Pending" value={stats.pending} color="#EF9F27" />
-          <StatCard label="Rejected" value={stats.rejected} color="#E24B4A" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <StatCard label="Total" value={stats.total} color="var(--accent-bright)" />
+          <StatCard label="Pending" value={stats.pending} color="var(--warning)" />
+          <StatCard label="Shortlisted" value={stats.shortlisted} color="var(--success)" />
+          <StatCard label="Rejected" value={stats.rejected} color="var(--danger)" />
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['all', 'pending', 'shortlisted', 'rejected'].map(f => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '6px 14px', borderRadius: 20, fontSize: 12,
-              border: '1px solid #ddd', cursor: 'pointer',
-              background: filter === f ? '#7F77DD' : '#fff',
-              color: filter === f ? '#fff' : '#666'
-            }}>{f}</button>
-          ))}
-        </div>
-
-        {selected.length === 2 && (
-          <button onClick={() => setComparing(true)} style={{
-            padding: '8px 18px', borderRadius: 10,
-            background: '#7F77DD', color: '#fff',
-            border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer'
+      <div style={{ display: 'flex', gap: 8 }}>
+        {['all', 'pending', 'shortlisted', 'rejected'].map(f => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding: '7px 16px', borderRadius: 8, fontSize: 13,
+            border: `1px solid ${filter === f ? 'var(--accent)' : 'var(--border-bright)'}`,
+            background: filter === f ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
+            color: filter === f ? 'var(--accent-bright)' : 'var(--text-secondary)',
+            fontWeight: 500, textTransform: 'capitalize', transition: 'all 0.15s'
           }}>
-            Compare selected ({selected.length})
+            {f}
           </button>
-        )}
-
-        {selected.length === 1 && (
-          <p style={{ fontSize: 12, color: '#999' }}>Select one more to compare</p>
-        )}
+        ))}
       </div>
 
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>
-          No candidates yet. Screen some resumes first.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {filtered.map((c, i) => (
-            <div key={c.id} style={{
-              background: '#fff',
-              border: selected.includes(c.id) ? '2px solid #7F77DD' : '1px solid #eee',
-              borderRadius: 12, padding: '14px 18px',
-              display: 'flex', alignItems: 'center', gap: 14
-            }}>
-              <input
-                type="checkbox"
-                checked={selected.includes(c.id)}
-                onChange={() => toggleSelect(c.id)}
-                style={{ width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
-              />
-
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                background: i === 0 ? '#1D9E75' : i === 1 ? '#7F77DD' : i === 2 ? '#EF9F27' : '#f0f0f0',
-                color: i < 3 ? '#fff' : '#999',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 600
-              }}>
-                {i + 1}
-              </div>
-
-              <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: 500, fontSize: 14 }}>{c.candidate_name}</p>
-                <p style={{ fontSize: 11, color: '#999' }}>{c.job_title} · {c.email || c.filename}</p>
-              </div>
-
-              <span style={{
-                fontSize: 18, fontWeight: 700,
-                color: c.total_score >= 75 ? '#1D9E75' : c.total_score >= 50 ? '#EF9F27' : '#E24B4A'
-              }}>
-                {c.total_score}
-              </span>
-
-              <StatusBadge status={c.status} />
-
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => updateStatus(c.id, 'shortlisted')} style={{
-                  padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
-                  border: '1px solid #1D9E75',
-                  background: c.status === 'shortlisted' ? '#1D9E75' : 'transparent',
-                  color: c.status === 'shortlisted' ? '#fff' : '#1D9E75'
-                }}>Shortlist</button>
-                <button onClick={() => updateStatus(c.id, 'rejected')} style={{
-                  padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer',
-                  border: '1px solid #E24B4A',
-                  background: c.status === 'rejected' ? '#E24B4A' : 'transparent',
-                  color: c.status === 'rejected' ? '#fff' : '#E24B4A'
-                }}>Reject</button>
-              </div>
-            </div>
-          ))}
-        </div>
+      {comparison.length === 2 && (
+        <ComparisonPanel candidates={comparison} onClose={() => setComparison([])} />
       )}
 
-      {comparing && compareData && (
-        <ComparePanel
-          candidates={compareData}
-          onClose={() => { setComparing(false); setSelected([]) }}
-        />
-      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {filtered.length === 0 ? (
+          <div style={{
+            padding: 60, textAlign: 'center',
+            background: 'var(--bg-card)', border: '1px dashed var(--border-bright)',
+            borderRadius: 16
+          }}>
+            <p style={{ color: 'var(--text-tertiary)', fontSize: 14 }}>
+              No candidates {filter !== 'all' ? `with status "${filter}"` : 'yet'}
+            </p>
+          </div>
+        ) : filtered.map(c => (
+          <CandidateRow
+            key={c.id}
+            candidate={c}
+            onUpdateStatus={updateStatus}
+            onSelect={() => setSelected(c)}
+            onCompare={() => toggleCompare(c)}
+            isComparing={!!comparison.find(x => x.id === c.id)}
+          />
+        ))}
+      </div>
+
+      {selected && <CandidateModal candidate={selected} onClose={() => setSelected(null)} />}
     </div>
   )
+}
+
+function StatCard({ label, value, color }) {
+  return (
+    <div style={{
+      background: 'var(--bg-card)', border: '1px solid var(--border)',
+      borderRadius: 12, padding: '16px 18px'
+    }}>
+      <p style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+        {label}
+      </p>
+      <p style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>{value}</p>
+    </div>
+  )
+}
+
+function CandidateRow({ candidate, onUpdateStatus, onSelect, onCompare, isComparing }) {
+  const c = candidate
+  const scoreColor = c.total_score >= 75 ? 'var(--success)' : c.total_score >= 50 ? 'var(--warning)' : 'var(--danger)'
+
+  return (
+    <div style={{
+      background: 'var(--bg-card)',
+      border: `1px solid ${isComparing ? 'var(--accent)' : 'var(--border)'}`,
+      borderRadius: 12, padding: '14px 18px',
+      display: 'flex', alignItems: 'center', gap: 16,
+      transition: 'all 0.15s'
+    }}>
+      <input type="checkbox" checked={isComparing} onChange={onCompare}
+        style={{ accentColor: '#7C3AED', cursor: 'pointer' }} />
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontWeight: 600, fontSize: 14, marginBottom: 2 }}>{c.candidate_name}</p>
+        <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+          {c.email || c.filename} · {c.job_title}
+        </p>
+      </div>
+
+      <div style={{
+        background: 'var(--bg-elevated)', border: `1px solid ${scoreColor}`,
+        borderRadius: 8, padding: '4px 12px'
+      }}>
+        <p style={{ fontSize: 16, fontWeight: 700, color: scoreColor, lineHeight: 1 }}>{c.total_score}</p>
+      </div>
+
+      <span style={{
+        fontSize: 10, padding: '4px 10px', borderRadius: 6,
+        background: c.status === 'shortlisted' ? 'var(--success-bg)' : c.status === 'rejected' ? 'var(--danger-bg)' : 'var(--warning-bg)',
+        color: c.status === 'shortlisted' ? '#6EE7B7' : c.status === 'rejected' ? '#FCA5A5' : '#FCD34D',
+        textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em'
+      }}>
+        {c.status}
+      </span>
+
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button onClick={onSelect} style={btnSecondary}>View</button>
+        {c.status !== 'shortlisted' && (
+          <button onClick={() => onUpdateStatus(c.id, 'shortlisted')} style={btnSuccess}>
+            Shortlist
+          </button>
+        )}
+        {c.status !== 'rejected' && (
+          <button onClick={() => onUpdateStatus(c.id, 'rejected')} style={btnDanger}>
+            Reject
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CandidateModal({ candidate, onClose }) {
+  const c = candidate
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(10, 10, 15, 0.8)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: 20, animation: 'fadeIn 0.2s ease-out'
+    }}>
+      <div style={{
+        background: 'var(--bg-card)', border: '1px solid var(--border-bright)',
+        borderRadius: 16, padding: 28,
+        width: '100%', maxWidth: 600, maxHeight: '85vh', overflowY: 'auto'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{c.candidate_name}</h2>
+            <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{c.email} · {c.job_title}</p>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', fontSize: 22,
+            color: 'var(--text-tertiary)', cursor: 'pointer', padding: 4
+          }}>✕</button>
+        </div>
+
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
+          {c.summary}
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <SkillBox title="Matched" skills={c.matched_skills || []} type="success" />
+          <SkillBox title="Missing" skills={c.missing_skills || []} type="danger" />
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <FlagBox title="Green flags" items={c.green_flags || []} symbol="+" color="var(--success)" />
+          <FlagBox title="Red flags" items={c.red_flags || []} symbol="−" color="var(--danger)" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ComparisonPanel({ candidates, onClose }) {
+  return (
+    <div style={{
+      background: 'var(--bg-card)', border: '1px solid var(--accent)',
+      borderRadius: 12, padding: 20
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-bright)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Comparing 2 candidates
+        </p>
+        <button onClick={onClose} style={btnSecondary}>Clear</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {candidates.map(c => (
+          <div key={c.id} style={{
+            background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+            borderRadius: 10, padding: 16
+          }}>
+            <p style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{c.candidate_name}</p>
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 12 }}>{c.job_title}</p>
+            <p style={{ fontSize: 32, fontWeight: 700, color: c.total_score >= 75 ? 'var(--success)' : c.total_score >= 50 ? 'var(--warning)' : 'var(--danger)' }}>
+              {c.total_score}
+            </p>
+            <p style={{ fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 12, marginBottom: 6 }}>
+              Top dimensions
+            </p>
+            {Object.entries(c.breakdown || {}).map(([k, v]) => (
+              <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}</span>
+                <span style={{ fontWeight: 600 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SkillBox({ title, skills, type }) {
+  const colors = type === 'success'
+    ? { bg: 'var(--success-bg)', color: '#6EE7B7', border: 'rgba(16, 185, 129, 0.3)' }
+    : { bg: 'var(--danger-bg)', color: '#FCA5A5', border: 'rgba(239, 68, 68, 0.3)' }
+  return (
+    <div style={{
+      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+      borderRadius: 10, padding: 14
+    }}>
+      <p style={{ fontSize: 11, fontWeight: 600, color: colors.color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+        {title}
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {skills.map(s => (
+          <span key={s} style={{
+            background: colors.bg, color: colors.color,
+            border: `1px solid ${colors.border}`,
+            padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500
+          }}>{s}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FlagBox({ title, items, symbol, color }) {
+  return (
+    <div style={{
+      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+      borderRadius: 10, padding: 14
+    }}>
+      <p style={{ fontSize: 11, fontWeight: 600, color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+        {title}
+      </p>
+      {items.map((f, i) => (
+        <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          <span style={{ color, fontWeight: 700, flexShrink: 0 }}>{symbol}</span>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{f}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const btnSecondary = {
+  padding: '6px 12px', borderRadius: 6, fontSize: 11,
+  border: '1px solid var(--border-bright)', background: 'transparent',
+  color: 'var(--text-secondary)', fontWeight: 500, cursor: 'pointer'
+}
+
+const btnSuccess = {
+  padding: '6px 12px', borderRadius: 6, fontSize: 11,
+  border: '1px solid rgba(16, 185, 129, 0.3)', background: 'var(--success-bg)',
+  color: '#6EE7B7', fontWeight: 600, cursor: 'pointer'
+}
+
+const btnDanger = {
+  padding: '6px 12px', borderRadius: 6, fontSize: 11,
+  border: '1px solid rgba(239, 68, 68, 0.3)', background: 'var(--danger-bg)',
+  color: '#FCA5A5', fontWeight: 600, cursor: 'pointer'
 }
