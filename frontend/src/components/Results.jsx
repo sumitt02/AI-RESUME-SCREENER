@@ -303,6 +303,49 @@ ${role === 'recruiter' ? `GREEN FLAGS\n${score.green_flags.map(f => `+ ${f}`).jo
               </Card>
             </>
           )}
+
+          {result.recommendations && result.recommendations.length > 0 && (
+            <>
+              <SectionHeader icon="◊" title="Better-fit jobs for you" />
+              <Card title={`${result.recommendations.length} jobs where you'd score 80+`}>
+                {result.recommendations.map((job, i) => (
+                  <a key={i} href={job.apply_url} target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: 'block', padding: '16px',
+                      background: 'var(--bg-elevated)', borderRadius: 12,
+                      border: '1px solid var(--border)',
+                      textDecoration: 'none', marginBottom: 10,
+                      transition: 'all 0.15s'
+                    }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>
+                          {job.title}
+                        </p>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                          {job.company} · {job.location || 'Remote'}
+                          {job.remote && <span style={{ marginLeft: 8, color: 'var(--success)' }}>● Remote</span>}
+                        </p>
+                      </div>
+                      <div style={{
+                        background: 'var(--success-bg)', border: '1px solid var(--success)',
+                        borderRadius: 8, padding: '4px 12px', flexShrink: 0
+                      }}>
+                        <p style={{ fontSize: 16, fontWeight: 700, color: '#6EE7B7', lineHeight: 1 }}>{job.score}</p>
+                        <p style={{ fontSize: 9, color: '#6EE7B7', textAlign: 'center', marginTop: 2 }}>FIT</p>
+                      </div>
+                    </div>
+                    <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5, marginTop: 8 }}>
+                      {job.snippet}
+                    </p>
+                    <p style={{ fontSize: 11, color: 'var(--accent-bright)', marginTop: 10, fontWeight: 500 }}>
+                      Apply on external site →
+                    </p>
+                  </a>
+                ))}
+              </Card>
+            </>
+          )}
         </>
       )}
     </div>

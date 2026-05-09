@@ -22,7 +22,23 @@ export default function Upload({ setResult, setLoading, setError, loading, role 
       : 'https://ai-resume-screener-production-f337.up.railway.app/api/score'
     try {
       const res = await axios.post(endpoint, formData)
-      setResult(res.data)
+      const result = res.data
+
+      if (role === 'candidate' && result.score?.total_score < 80 && result.score?.matched_skills?.length > 0) {
+        try {
+          const recs = await axios.post(
+            'https://ai-resume-screener-production-f337.up.railway.app/api/recommend-jobs',
+            {
+              skills: result.score.matched_skills,
+              job_title: jobTitle
+            }
+          )
+          result.recommendations = recs.data.recommendations
+        } catch (e) {
+          console.warn('Job recommendations failed', e)
+        }
+      }
+      setResult(result)
     } catch (err) {
       setError(err.response?.data?.detail || 'Something went wrong')
     } finally { setLoading(false) }

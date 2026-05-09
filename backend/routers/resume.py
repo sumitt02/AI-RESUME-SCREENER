@@ -5,6 +5,7 @@ from services.scorer import bulk_score_resumes, parse_and_score_resume
 from services.database import get_db, ScreeningResult, User
 from services.auth import require_recruiter,get_current_user
 from services.deduplicator import get_file_hash, get_skills_fingerprint, check_duplicate
+from pydantic import BaseModel
 import uuid
 
 router = APIRouter()
@@ -209,3 +210,18 @@ async def candidate_score(
             "summary": result.get("summary", "")
         }
     }
+    class JobRecommendRequest(BaseModel):
+    skills: list[str]
+    job_title: str = "Software Developer"
+
+
+@router.post("/recommend-jobs")
+async def recommend_jobs(
+    body: JobRecommendRequest,
+    current_user: User = Depends(get_current_user)
+):
+    from services.job_recommender import get_recommendations
+    if not body.skills:
+        return {"recommendations": [], "count": 0}
+    matches = get_recommendations(body.skills, body.job_title, min_score=80)
+    return {"recommendations": matches, "count": len(matches)}
