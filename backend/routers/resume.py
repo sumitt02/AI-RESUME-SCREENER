@@ -210,7 +210,9 @@ async def candidate_score(
             "summary": result.get("summary", "")
         }
     }
-    class JobRecommendRequest(BaseModel):
+
+
+class JobRecommendRequest(BaseModel):
     skills: list[str]
     job_title: str = "Software Developer"
 
