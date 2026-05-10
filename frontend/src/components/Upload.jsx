@@ -24,7 +24,10 @@ export default function Upload({ setResult, setLoading, setError, loading, role 
       const res = await axios.post(endpoint, formData)
       const result = res.data
 
+      console.log('Upload result:', result)
+      console.log('Should fetch jobs?', role === 'candidate', result.score?.total_score, result.score?.matched_skills)
       if (role === 'candidate' && result.score?.total_score < 80 && result.score?.matched_skills?.length > 0) {
+        console.log('Calling job recommendations endpoint...')
         try {
           const recs = await axios.post(
             'https://ai-resume-screener-production-f337.up.railway.app/api/recommend-jobs',
